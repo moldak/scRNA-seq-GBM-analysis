@@ -123,3 +123,48 @@ goi <- data.markers %>%
 DotPlot(core, features = goi, cluster.idents = TRUE) + coord_flip()
 
 DimPlot(core, reduction = "umap", group.by = "seurat_clusters")
+
+#Check the clusters
+cluster_var <- 'seurat_clusters'
+clusters <- unique(core@meta.data[[cluster_var]])
+clusters <- clusters[order(clusters)]
+df <- data.frame()
+for(i in 1:length(clusters)){
+  cur_df <- as.data.frame(core@meta.data %>% subset(seurat_clusters == clusters[i]) %>% .$orig.ident %>% table())
+  
+  cur_df$Freq <- cur_df$Freq * 1/(sum(cur_df$Freq))
+  
+  cur_df$cluster <- clusters[i]
+  df <- rbind(df, cur_df)
+  print(i)
+}
+df_counts <- df %>%
+  group_by(cluster) %>%
+  summarise(
+    Freq = unique(Freq),
+    n_cells = n()
+  )
+df1 <- df %>%
+  group_by(cluster) %>%
+  mutate(n_cells = n()) %>%
+  ungroup()
+p <- ggplot(df1, aes(y=Freq, x=cluster, fill=.)) +
+  geom_bar(stat='identity') +
+  scale_y_continuous(expand = c(0,0)) +
+  ylab('normalized proportion') +
+  theme(
+    panel.grid.major=element_blank(),
+    panel.grid.minor=element_blank(),
+    axis.text.x = element_text(angle=45, hjust=1),
+    axis.title.x = element_blank(),
+    legend.title = element_blank(),
+    axis.line.y = element_blank(),
+    axis.line.x = element_blank(),
+  )
+print(p)
+
+DimPlot(core, reduction = "umap", 
+        group.by = c("orig.ident", "seurat_clusters")) & theme(legend.position = "none")
+
+
+saveRDS(core,"scRNA_GBM_clustered.RDS")
